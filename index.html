@@ -1,196 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Emu's Blocks</title>
-  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      background: #1e1e1e;
-      color: white;
-    }
-    header {
-      background: #282c34;
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    nav button {
-      background: #3a3f47;
-      color: white;
-      border: none;
-      padding: 10px;
-      margin-left: 5px;
-      cursor: pointer;
-    }
-    .tab {
-      padding: 20px;
-    }
-    .hidden {
-      display: none;
-    }
-    #editor-container {
-      display: flex;
-      height: 500px;
-    }
-    #blocklyDiv {
-      height: 100%;
-      width: 60%;
-      background: white;
-    }
-    #stage {
-      width: 40%;
-      background: #222;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #scene {
-      background: #444;
-    }
-    .modal {
-      position: fixed;
-      top: 20%;
-      left: 25%;
-      width: 50%;
-      padding: 20px;
-      background: #333;
-      border: 2px solid #999;
-      z-index: 10;
-    }
-  </style>
+<meta charset="UTF-8"/>
+<title>Emu’s Blocks</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/blockly/blockly.min.js"></script>
+<style>
+  body{font-family:sans-serif;margin:0;background:#1e1e1e;color:white}
+  header{background:#282c34;padding:10px;display:flex; justify-content:space-between; align-items:center}
+  nav button{background:#3a3f47;color:white;border:none;padding:10px;margin-left:5px;cursor:pointer}
+  .tab{padding:20px}
+  .hidden{display:none}
+  #editor-container{display:flex;height:500px}
+  #blocklyDiv{height:100%;width:60%;background:white}
+  #stage{width:40%;background:#222;display:flex;align-items:center;justify-content:center}
+  #scene{background:#444}
+  .modal{position:fixed;top:20%;left:25%;width:50%;padding:20px;background:#333;border:2px solid #999;z-index:10}
+  canvas{background:#fff;border:1px solid #999}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Emu's Blocks</h1>
-    <nav>
-      <button onclick="showTab('create')">Create</button>
-      <button onclick="showTab('profile')">Profile</button>
-    </nav>
-  </header>
+<header>
+  <h1>Emu’s Blocks</h1>
+  <nav>
+    <button onclick="showTab('create')">Create</button>
+    <button onclick="showTab('profile')">Profile</button>
+    <button id="sign-in" onclick="signIn()">Sign in</button>
+    <button id="sign-out" onclick="signOut()" class="hidden">Sign out</button>
+  </nav>
+</header>
 
-  <main>
-    <!-- Create Tab -->
-    <section id="create-tab" class="tab">
-      <div id="editor-container">
-        <div id="blocklyDiv"></div>
-        <div id="stage">
-          <canvas id="scene" width="480" height="360"></canvas>
-        </div>
-      </div>
-      <div id="editors">
-        <button onclick="openSpriteEditor()">Sprite Editor</button>
-        <button onclick="openBackgroundEditor()">Background Editor</button>
-      </div>
-    </section>
+<main>
+  <section id="create-tab" class="tab">
+    <div id="editor-container">
+      <div id="blocklyDiv"></div>
+      <div id="stage"><canvas id="scene" width="480" height="360"></canvas></div>
+    </div>
+    <div id="editors">
+      <button onclick="openSpriteEditor()">Sprite Editor</button>
+      <button onclick="openBackgroundEditor()">Background Editor</button>
+      <button onclick="saveProject()">Save Project</button>
+      <button onclick="loadProject()">Load My Project</button>
+    </div>
+  </section>
+  <section id="profile-tab" class="tab hidden">
+    <h2>User Profile</h2>
+    <p>Username: <span id="username">Guest</span></p>
+    <p>Status: <span id="status">Not signed in</span></p>
+  </section>
+</main>
 
-    <!-- Profile Tab -->
-    <section id="profile-tab" class="tab hidden">
-      <h2>User Profile</h2>
-      <p>Username: <span id="username">Guest</span></p>
-      <p>Status: Not Signed In</p>
-    </section>
-  </main>
+<div id="sprite-editor" class="modal hidden">
+  <h3>Sprite Editor</h3>
+  <canvas id="spriteCanvas" width="200" height="200"></canvas><br/>
+  <button onclick="closeEditors()">Close</button>
+</div>
 
-  <!-- Modal Editors -->
-  <div id="sprite-editor" class="modal hidden">
-    <h3>Sprite Editor</h3>
-    <p>[Coming soon]</p>
-    <button onclick="closeEditors()">Close</button>
-  </div>
+<div id="background-editor" class="modal hidden">
+  <h3>Background Editor</h3>
+  <canvas id="bgCanvas" width="480" height="360"></canvas><br/>
+  <button onclick="closeEditors()">Close</button>
+</div>
 
-  <div id="background-editor" class="modal hidden">
-    <h3>Background Editor</h3>
-    <p>[Coming soon]</p>
-    <button onclick="closeEditors()">Close</button>
-  </div>
+<script>
+  // --- Firebase Config (replace with your credentials) ---
+  firebase.initializeApp({
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    databaseURL: "YOUR_DB_URL",
+    projectId: "YOUR_PROJECT_ID"
+  });
+  const auth = firebase.auth(), db = firebase.database();
 
-  <script>
-    // Tab switching
-    function showTab(tabName) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
-      document.getElementById(tabName + '-tab').classList.remove('hidden');
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      document.getElementById('sign-in').classList.add('hidden');
+      document.getElementById('sign-out').classList.remove('hidden');
+      document.getElementById('username').textContent = user.displayName;
+      document.getElementById('status').textContent = "Signed in";
+    } else {
+      document.getElementById('sign-in').classList.remove('hidden');
+      document.getElementById('sign-out').classList.add('hidden');
+      document.getElementById('username').textContent = "Guest";
+      document.getElementById('status').textContent = "Not signed in";
     }
+  });
 
-    // Editors
-    function openSpriteEditor() {
-      document.getElementById('sprite-editor').classList.remove('hidden');
-    }
-    function openBackgroundEditor() {
-      document.getElementById('background-editor').classList.remove('hidden');
-    }
-    function closeEditors() {
-      document.getElementById('sprite-editor').classList.add('hidden');
-      document.getElementById('background-editor').classList.add('hidden');
-    }
+  function signIn(){
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(console.error);
+  }
+  function signOut(){
+    auth.signOut();
+  }
 
-    // Blockly setup
-    const workspace = Blockly.inject('blocklyDiv', {
-      toolbox: `
-        <xml>
-          <category name="Motion" colour="210">
-            <block type="move_forward"></block>
-            <block type="turn_right"></block>
-          </category>
-          <category name="Events" colour="120">
-            <block type="when_flag_clicked"></block>
-          </category>
-          <category name="Control" colour="240">
-            <block type="controls_repeat_ext">
-              <value name="TIMES"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
-            </block>
-          </category>
-        </xml>
-      `
+  function showTab(n){
+    document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+    document.getElementById(n+'-tab').classList.remove('hidden');
+  }
+  function openSpriteEditor(){document.getElementById('sprite-editor').classList.remove('hidden');}
+  function openBackgroundEditor(){document.getElementById('background-editor').classList.remove('hidden');}
+  function closeEditors(){document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));}
+
+  // --- Blockly Setup ---
+  const workspace = Blockly.inject('blocklyDiv', {
+    toolbox: `
+      <xml>
+        <category name="Motion" colour="#4C97FF"><block type="move_steps"></block><block type="turn_right"></block><block type="turn_left"></block><block type="go_to"></block><block type="glide"></block></category>
+        <category name="Looks" colour="#9966FF"><block type="say_for_secs"></block><block type="switch_backdrop"></block></category>
+        <category name="Sound" colour="#CF63CF"><block type="play_sound"></block><block type="set_volume"></block></category>
+        <category name="Events" colour="#FFBF00"><block type="when_flag"></block><block type="when_key_pressed"></block><block type="when_sprite_clicked"></block></category>
+        <category name="Control" colour="#FFAB19"><block type="wait"></block><block type="repeat"></block><block type="if"></block><block type="forever"></block></category>
+        <category name="Sensing" colour="#5CB1D6"><block type="touching"></block><block type="ask_and_wait"></block></category>
+        <category name="Operators" colour="#40BF4A"><block type="math_op"></block><block type="logic_compare"></block><block type="text_join"></block></category>
+        <category name="Variables" custom="VARIABLE"></category>
+        <category name="My Blocks" custom="PROCEDURE"></category>
+      </xml>`
+  });
+
+  Blockly.defineBlocksWithJsonArray([
+    {"type":"move_steps","message0":"move %1 steps","args0":[{"type":"field_number","name":"STEPS","value":10}],"previousStatement":null,"nextStatement":null,"colour":76},
+    {"type":"turn_right","message0":"turn %1° right","args0":[{"type":"field_angle","name":"DEG","angle":15}],"previousStatement":null,"nextStatement":null,"colour":76},
+    {"type":"turn_left","message0":"turn %1° left","args0":[{"type":"field_angle","name":"DEG","angle":15}],"previousStatement":null,"nextStatement":null,"colour":76},
+    {"type":"go_to","message0":"go to x:%1 y:%2","args0":[{"type":"field_number","name":"X","value":0},{"type":"field_number","name":"Y","value":0}],"previousStatement":null,"nextStatement":null,"colour":76},
+    {"type":"glide","message0":"glide %1 secs to x:%2 y:%3","args0":[{"type":"field_number","name":"SEC","value":1},{"type":"field_number","name":"X","value":0},{"type":"field_number","name":"Y","value":0}],"previousStatement":null,"nextStatement":null,"colour":76},
+    {"type":"say_for_secs","message0":"say %1 for %2 secs","args0":[{"type":"field_input","name":"TEXT","text":"Hello"},{"type":"field_number","name":"SEC","value":2}],"previousStatement":null,"nextStatement":null,"colour":153},
+    {"type":"switch_backdrop","message0":"switch backdrop to %1","args0":[{"type":"field_input","name":"BACKDROP","text":"backdrop1"}],"previousStatement":null,"nextStatement":null,"colour":153},
+    {"type":"play_sound","message0":"play sound %1","args0":[{"type":"field_dropdown","name":"VALUE","options":[["meow","meow"],["pop","pop"]]}],"previousStatement":null,"nextStatement":null,"colour":301},
+    {"type":"set_volume","message0":"set volume to %1%","args0":[{"type":"field_number","name":"VOLUME","value":100}],"previousStatement":null,"nextStatement":null,"colour":301},
+    {"type":"when_flag","message0":"when green flag clicked","nextStatement":null,"colour":60},
+    {"type":"when_key_pressed","message0":"when key %1 pressed","args0":[{"type":"field_dropdown","name":"KEY","options":[["space","SPACE"],["up arrow","UP"]]}],"nextStatement":null,"colour":60},
+    {"type":"when_sprite_clicked","message0":"when this sprite clicked","nextStatement":null,"colour":60},
+    {"type":"wait","message0":"wait %1 secs","args0":[{"type":"field_number","name":"SEC","value":1}],"previousStatement":null,"nextStatement":null,"colour":230},
+    {"type":"repeat","message0":"repeat %1 times","args0":[{"type":"field_number","name":"TIMES","value":10}],"message1":"%1","args1":[{"type":"input_statement","name":"DO"}],"previousStatement":null,"nextStatement":null,"colour":230},
+    {"type":"if","message0":"if %1 then","args0":[{"type":"input_value","name":"COND"}],"message1":"%1","args1":[{"type":"input_statement","name":"DO"}],"previousStatement":null,"nextStatement":null,"colour":230},
+    {"type":"forever","message0":"forever","message1":"%1","args1":[{"type":"input_statement","name":"DO"}],"previousStatement":null,"nextStatement":null,"colour":230},
+    {"type":"touching","message0":"touching %1?","args0":[{"type":"field_dropdown","name":"OBJ","options":[["edge","EDGE"],["mouse-pointer","MOUSE"]]}],"output":"Boolean","colour":200},
+    {"type":"ask_and_wait","message0":"ask %1 and wait","args0":[{"type":"field_input","name":"QUESTION","text":"What's your name?"}],"previousStatement":null,"nextStatement":null,"colour":200},
+    {"type":"math_op","message0":"%1 %2 %3","args0":[{"type":"field_number","name":"A","value":1},{"type":"field_dropdown","name":"OP","
+options":[["+","ADD"],["-","MINUS"],["×","MULTIPLY"],["÷","DIVIDE"]]},{"type":"field_number","name":"B","value":1}],"output":"Number","colour":230},
+    {"type":"logic_compare","message0":"%1 %2 %3","args0":[{"type":"input_value","name":"A"},{"type":"field_dropdown","name":"OP",[["=", "EQ"],["\u2260","NEQ"],[">","GT"],["<","LT"],[">=", "GTE"],["<=", "LTE"]]},{"type":"input_value","name":"B"}],"output":"Boolean","colour":210},
+    {"type":"text_join","message0":"join %1 and %2","args0":[{"type":"field_input","name":"A","text":""},{"type":"field_input","name":"B","text":""}],"output":"String","colour":160}
+  ]);
+
+  // --- Canvas Sprite Movement ---
+  const canvas = document.getElementById('scene'), ctx = canvas.getContext('2d');
+  let sprite = {x:100, y:100};
+  canvas.addEventListener('mousedown', e=>{
+    const r=canvas.getBoundingClientRect();
+    sprite.x = e.clientX - r.left - 25;
+    sprite.y = e.clientY - r.top - 25;
+    draw();
+  });
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='yellow';
+    ctx.fillRect(sprite.x, sprite.y, 50, 50);
+  }
+  draw();
+
+  // --- Save / Load to Firebase ---
+  function saveProject(){
+    const user = auth.currentUser;
+    if(!user) return alert('Please sign in first!');
+    const xml = Blockly.Xml.workspaceToDom(workspace);
+    const str = Blockly.Xml.domToText(xml);
+    db.ref('projects/'+user.uid).set({xml:str})
+      .then(() => alert('Project saved!'))
+      .catch(e=>alert('Save failed: '+e.message));
+  }
+
+  function loadProject(){
+    const user = auth.currentUser;
+    if(!user) return alert('Please sign in first!');
+    db.ref('projects/'+user.uid).once('value').then(s=>{
+      const v=s.val();
+      if(v?.xml){
+        workspace.clear();
+        const dom=Blockly.Xml.textToDom(v.xml);
+        Blockly.Xml.domToWorkspace(dom, workspace);
+        alert('Project loaded!');
+      } else alert('No project found.');
     });
-
-    // Define dummy blocks
-    Blockly.defineBlocksWithJsonArray([
-      {
-        "type": "move_forward",
-        "message0": "move forward",
-        "previousStatement": null,
-        "nextStatement": null,
-        "colour": 210
-      },
-      {
-        "type": "turn_right",
-        "message0": "turn right",
-        "previousStatement": null,
-        "nextStatement": null,
-        "colour": 210
-      },
-      {
-        "type": "when_flag_clicked",
-        "message0": "when green flag clicked",
-        "nextStatement": null,
-        "colour": 120
-      }
-    ]);
-
-    // Canvas setup
-    const canvas = document.getElementById("scene");
-    const ctx = canvas.getContext("2d");
-
-    let sprite = { x: 100, y: 100 };
-
-    function drawSprite() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "yellow";
-      ctx.fillRect(sprite.x, sprite.y, 50, 50);
-    }
-
-    canvas.addEventListener("mousedown", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      sprite.x = e.clientX - rect.left - 25;
-      sprite.y = e.clientY - rect.top - 25;
-      drawSprite();
-    });
-
-    drawSprite(); // Initial draw
-  </script>
+  }
+</script>
 </body>
 </html>
