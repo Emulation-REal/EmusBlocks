@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Emu's Blocks</title>
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #1e1e1e;
+      color: white;
+    }
+    header {
+      background: #282c34;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    nav button {
+      background: #3a3f47;
+      color: white;
+      border: none;
+      padding: 10px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    .tab {
+      padding: 20px;
+    }
+    .hidden {
+      display: none;
+    }
+    #editor-container {
+      display: flex;
+      height: 500px;
+    }
+    #blocklyDiv {
+      height: 100%;
+      width: 60%;
+      background: white;
+    }
+    #stage {
+      width: 40%;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #scene {
+      background: #444;
+    }
+    .modal {
+      position: fixed;
+      top: 20%;
+      left: 25%;
+      width: 50%;
+      padding: 20px;
+      background: #333;
+      border: 2px solid #999;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Emu's Blocks</h1>
+    <nav>
+      <button onclick="showTab('create')">Create</button>
+      <button onclick="showTab('profile')">Profile</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Create Tab -->
+    <section id="create-tab" class="tab">
+      <div id="editor-container">
+        <div id="blocklyDiv"></div>
+        <div id="stage">
+          <canvas id="scene" width="480" height="360"></canvas>
+        </div>
+      </div>
+      <div id="editors">
+        <button onclick="openSpriteEditor()">Sprite Editor</button>
+        <button onclick="openBackgroundEditor()">Background Editor</button>
+      </div>
+    </section>
+
+    <!-- Profile Tab -->
+    <section id="profile-tab" class="tab hidden">
+      <h2>User Profile</h2>
+      <p>Username: <span id="username">Guest</span></p>
+      <p>Status: Not Signed In</p>
+    </section>
+  </main>
+
+  <!-- Modal Editors -->
+  <div id="sprite-editor" class="modal hidden">
+    <h3>Sprite Editor</h3>
+    <p>[Coming soon]</p>
+    <button onclick="closeEditors()">Close</button>
+  </div>
+
+  <div id="background-editor" class="modal hidden">
+    <h3>Background Editor</h3>
+    <p>[Coming soon]</p>
+    <button onclick="closeEditors()">Close</button>
+  </div>
+
+  <script>
+    // Tab switching
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+      document.getElementById(tabName + '-tab').classList.remove('hidden');
+    }
+
+    // Editors
+    function openSpriteEditor() {
+      document.getElementById('sprite-editor').classList.remove('hidden');
+    }
+    function openBackgroundEditor() {
+      document.getElementById('background-editor').classList.remove('hidden');
+    }
+    function closeEditors() {
+      document.getElementById('sprite-editor').classList.add('hidden');
+      document.getElementById('background-editor').classList.add('hidden');
+    }
+
+    // Blockly setup
+    const workspace = Blockly.inject('blocklyDiv', {
+      toolbox: `
+        <xml>
+          <category name="Motion" colour="210">
+            <block type="move_forward"></block>
+            <block type="turn_right"></block>
+          </category>
+          <category name="Events" colour="120">
+            <block type="when_flag_clicked"></block>
+          </category>
+          <category name="Control" colour="240">
+            <block type="controls_repeat_ext">
+              <value name="TIMES"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
+            </block>
+          </category>
+        </xml>
+      `
+    });
+
+    // Define dummy blocks
+    Blockly.defineBlocksWithJsonArray([
+      {
+        "type": "move_forward",
+        "message0": "move forward",
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 210
+      },
+      {
+        "type": "turn_right",
+        "message0": "turn right",
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 210
+      },
+      {
+        "type": "when_flag_clicked",
+        "message0": "when green flag clicked",
+        "nextStatement": null,
+        "colour": 120
+      }
+    ]);
+
+    // Canvas setup
+    const canvas = document.getElementById("scene");
+    const ctx = canvas.getContext("2d");
+
+    let sprite = { x: 100, y: 100 };
+
+    function drawSprite() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(sprite.x, sprite.y, 50, 50);
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      sprite.x = e.clientX - rect.left - 25;
+      sprite.y = e.clientY - rect.top - 25;
+      drawSprite();
+    });
+
+    drawSprite(); // Initial draw
+  </script>
+</body>
+</html>
